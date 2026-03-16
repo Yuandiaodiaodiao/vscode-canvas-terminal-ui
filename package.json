@@ -1,0 +1,64 @@
+{
+  "name": "terminal-canvas",
+  "displayName": "Terminal Canvas",
+  "description": "A free-form canvas workspace for managing multiple terminal windows with drag, resize, and zoom capabilities",
+  "version": "0.0.1",
+  "publisher": "terminal-canvas",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "terminalCanvas.open",
+        "title": "Open Canvas",
+        "icon": "$(terminal)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "terminalCanvas.open",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "terminalCanvas",
+          "title": "Terminal Canvas",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "terminalCanvas": [
+        {
+          "id": "terminalCanvas.view",
+          "name": "Terminals",
+          "type": "webview"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "terminalCanvas.open",
+          "when": "view == terminalCanvas.view",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "lint": "eslint src/"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0"
+  }
+}
