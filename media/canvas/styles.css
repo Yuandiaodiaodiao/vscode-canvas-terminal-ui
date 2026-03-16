@@ -1,0 +1,488 @@
+/* Terminal Canvas - All Styles */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  background: var(--vscode-editor-background, #1e1e1e);
+  font-family: var(--vscode-font-family, 'Segoe UI', sans-serif);
+  user-select: none;
+}
+
+/* Toolbar */
+#toolbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: var(--vscode-titleBar-activeBackground, #323233);
+  border-bottom: 1px solid var(--vscode-panel-border, #444);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  z-index: 10000;
+}
+
+#toolbar button {
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+  border: none;
+  padding: 4px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#toolbar button:hover {
+  background: var(--vscode-button-hoverBackground, #1177bb);
+}
+
+#toolbar button.secondary {
+  background: var(--vscode-button-secondaryBackground, #3a3d41);
+  color: var(--vscode-button-secondaryForeground, #fff);
+}
+
+#toolbar button.secondary:hover {
+  background: var(--vscode-button-secondaryHoverBackground, #505254);
+}
+
+#toolbar .separator {
+  width: 1px;
+  height: 20px;
+  background: var(--vscode-panel-border, #444);
+}
+
+#toolbar .zoom-display {
+  color: var(--vscode-foreground, #ccc);
+  font-size: 12px;
+  min-width: 50px;
+  text-align: center;
+}
+
+#toolbar .spacer { flex: 1; }
+
+#toolbar .hint {
+  color: var(--vscode-descriptionForeground, #888);
+  font-size: 11px;
+}
+
+/* Canvas area */
+#canvas-viewport {
+  position: fixed;
+  top: 40px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  cursor: grab;
+  border-left: 1px solid var(--vscode-panel-border, #444);
+  z-index: 1;
+}
+
+#canvas-viewport:focus {
+  outline: none;
+}
+
+#canvas-viewport.panning { cursor: grabbing; }
+
+#canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+/* Grid background */
+#grid-bg {
+  position: fixed;
+  top: 40px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.15;
+}
+
+/* Terminal Window */
+.terminal-window {
+  position: absolute;
+  min-width: 300px;
+  min-height: 200px;
+  background: var(--vscode-terminal-background, #1e1e1e);
+  border: 1px solid var(--vscode-panel-border, #444);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.15s ease;
+}
+
+.terminal-window.focused {
+  border-color: var(--vscode-focusBorder, #007fd4);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.6), 0 0 0 1px var(--vscode-focusBorder, #007fd4);
+}
+
+.terminal-window .title-bar {
+  height: 32px;
+  background: var(--vscode-titleBar-activeBackground, #323233);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  cursor: move;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 11;
+}
+
+.terminal-window .title-bar .title {
+  color: var(--vscode-foreground, #ccc);
+  font-size: 12px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.terminal-window .title-bar .title-btn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--vscode-foreground, #ccc);
+  cursor: pointer;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.terminal-window .title-bar .title-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.terminal-window .title-bar .title-btn.close:hover {
+  background: #c42b1c;
+  color: #fff;
+}
+
+.terminal-window .title-bar .quick-cmd {
+  padding: 2px 8px;
+  border: 1px solid var(--vscode-panel-border, #555);
+  background: transparent;
+  color: var(--vscode-button-background, #0e639c);
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 11px;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.terminal-window .title-bar .quick-cmd:hover {
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #fff);
+}
+
+.terminal-window .terminal-body {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.terminal-window .terminal-body .xterm {
+  height: 100%;
+  padding: 4px;
+}
+
+/* Resize handles */
+.terminal-window .resize-handle,
+.image-window .resize-handle,
+.browser-window .resize-handle {
+  position: absolute;
+  z-index: 10;
+}
+
+.resize-handle.right { top: 12px; right: -6px; width: 12px; bottom: 12px; cursor: ew-resize; }
+.resize-handle.bottom { bottom: -6px; left: 12px; right: 12px; height: 12px; cursor: ns-resize; }
+.resize-handle.corner { bottom: -8px; right: -8px; width: 32px; height: 32px; cursor: nwse-resize; }
+.resize-handle.left { top: 12px; left: -6px; width: 12px; bottom: 12px; cursor: ew-resize; }
+.resize-handle.top { top: -6px; left: 12px; right: 12px; height: 12px; cursor: ns-resize; }
+.resize-handle.top-left { top: -8px; left: -8px; width: 32px; height: 32px; cursor: nwse-resize; }
+.resize-handle.top-right { top: -8px; right: -8px; width: 32px; height: 32px; cursor: nesw-resize; }
+.resize-handle.bottom-left { bottom: -8px; left: -8px; width: 32px; height: 32px; cursor: nesw-resize; }
+
+/* Minimap */
+#minimap {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  width: 180px;
+  height: 120px;
+  background: rgba(30, 30, 30, 0.9);
+  border: 1px solid var(--vscode-panel-border, #444);
+  border-radius: 4px;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+#minimap .minimap-viewport {
+  position: absolute;
+  border: 1px solid var(--vscode-focusBorder, #007fd4);
+  background: rgba(0, 127, 212, 0.1);
+  pointer-events: none;
+}
+
+#minimap .minimap-window {
+  position: absolute;
+  background: var(--vscode-terminal-background, #2d2d2d);
+  border: 1px solid #555;
+  border-radius: 1px;
+}
+
+/* Connection line when dragging */
+.drop-indicator {
+  position: absolute;
+  border: 2px dashed var(--vscode-focusBorder, #007fd4);
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* Layout presets dropdown */
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--vscode-menu-background, #252526);
+  border: 1px solid var(--vscode-menu-border, #444);
+  border-radius: 4px;
+  padding: 4px 0;
+  z-index: 10001;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.dropdown-menu .menu-item {
+  padding: 6px 16px;
+  color: var(--vscode-menu-foreground, #ccc);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.dropdown-menu .menu-item:hover {
+  background: var(--vscode-menu-selectionBackground, #094771);
+  color: var(--vscode-menu-selectionForeground, #fff);
+}
+
+.canvas-context-menu {
+  position: fixed;
+  min-width: 160px;
+  background: var(--vscode-menu-background, #252526);
+  border: 1px solid var(--vscode-menu-border, #444);
+  border-radius: 6px;
+  padding: 4px 0;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+  z-index: 10002;
+}
+
+.canvas-context-menu .menu-item {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--vscode-menu-foreground, #ccc);
+  font-size: 12px;
+  text-align: left;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+
+.canvas-context-menu .menu-item:hover {
+  background: var(--vscode-menu-selectionBackground, #094771);
+  color: var(--vscode-menu-selectionForeground, #fff);
+}
+
+/* Image Window */
+.image-window {
+  position: absolute;
+  background: var(--vscode-editor-background, #1e1e1e);
+  border: 1px solid var(--vscode-panel-border, #444);
+  border-radius: 6px;
+  overflow: visible;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  transition: box-shadow 0.15s ease;
+}
+
+.image-window.focused {
+  border-color: var(--vscode-focusBorder, #007fd4);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.6), 0 0 0 1px var(--vscode-focusBorder, #007fd4);
+}
+
+.image-window .title-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background: var(--vscode-titleBar-activeBackground, #323233);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  cursor: move;
+  border-radius: 6px 6px 0 0;
+  z-index: 11;
+}
+
+.image-window .title-bar .title {
+  color: var(--vscode-foreground, #ccc);
+  font-size: 11px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-window .title-bar .title-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--vscode-foreground, #ccc);
+  cursor: pointer;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+.image-window .title-bar .title-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.image-window .title-bar .title-btn.close:hover {
+  background: #c42b1c;
+  color: #fff;
+}
+
+.image-window .image-body {
+  position: absolute;
+  top: 28px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  background: #111;
+  border-radius: 0 0 6px 6px;
+}
+
+.image-window .image-body img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* Browser Window (iframe) */
+.browser-window {
+  position: absolute;
+  background: var(--vscode-editor-background, #1e1e1e);
+  border: 1px solid var(--vscode-panel-border, #444);
+  border-radius: 6px;
+  overflow: visible;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  transition: box-shadow 0.15s ease;
+  min-width: 200px;
+  min-height: 150px;
+}
+
+.browser-window.focused {
+  border-color: var(--vscode-focusBorder, #007fd4);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.6), 0 0 0 1px var(--vscode-focusBorder, #007fd4);
+}
+
+.browser-window .title-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 32px;
+  background: var(--vscode-titleBar-activeBackground, #323233);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  cursor: move;
+  border-radius: 6px 6px 0 0;
+  gap: 6px;
+  z-index: 11;
+}
+
+.browser-window .title-bar .url-label {
+  color: var(--vscode-descriptionForeground, #888);
+  font-size: 11px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: monospace;
+}
+
+.browser-window .title-bar .title-btn {
+  width: 22px; height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--vscode-foreground, #ccc);
+  cursor: pointer;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.browser-window .title-bar .title-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.browser-window .title-bar .title-btn.close:hover {
+  background: #c42b1c;
+  color: #fff;
+}
+
+.browser-window .browser-body {
+  position: absolute;
+  top: 32px; left: 0; right: 0; bottom: 0;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 0 0 6px 6px;
+}
+
+.browser-window .browser-body iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Overlay to prevent iframe capturing mouse during drag/resize */
+.browser-window .iframe-overlay {
+  position: absolute;
+  top: 32px; left: 0; right: 0; bottom: 0;
+  z-index: 5;
+  display: none;
+}
+
+.browser-window.dragging .iframe-overlay {
+  display: block;
+}

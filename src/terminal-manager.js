@@ -16,6 +16,9 @@ class TerminalManager {
       case 'createTerminal':
         this.createTerminal(msg.id, msg.cols, msg.rows);
         break;
+      case 'requestPasteData':
+        this.readClipboardImage();
+        break;
       case 'input':
         this.sendInput(msg.id, msg.data);
         break;
