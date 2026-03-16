@@ -5,14 +5,22 @@ const { SidebarProvider } = require('./sidebar');
 function activate(context) {
   const sidebarProvider = new SidebarProvider(context);
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider('terminalCanvas.view', sidebarProvider)
+    vscode.window.registerWebviewViewProvider('terminalCanvas.view', sidebarProvider, {
+      webviewOptions: { retainContextWhenHidden: true },
+    })
   );
 
   const openCommand = vscode.commands.registerCommand('terminalCanvas.open', () => {
     TerminalCanvasPanel.createOrShow(context);
   });
 
-  context.subscriptions.push(openCommand);
+  const pasteImageCommand = vscode.commands.registerCommand('terminalCanvas.pasteImage', () => {
+    if (TerminalCanvasPanel.currentPanel) {
+      TerminalCanvasPanel.currentPanel.readClipboardImage();
+    }
+  });
+
+  context.subscriptions.push(openCommand, pasteImageCommand);
 }
 
 function deactivate() {}
