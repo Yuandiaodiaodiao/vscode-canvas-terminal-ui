@@ -1,4 +1,5 @@
 const { TerminalManager } = require('./terminal-manager');
+const { SyncBridge } = require('./sync-bridge');
 
 const BUFFER_MAX = 512 * 1024;
 
@@ -25,6 +26,10 @@ class SharedStateManager {
 
     // Override TerminalManager.postMessage to intercept all output
     this.terminalManager.postMessage = (msg) => this._onTerminalMessage(msg);
+
+    // IPC bridge for multi-instance sync
+    this.syncBridge = new SyncBridge(this);
+    this.syncBridge.start();
   }
 
   // ─── Webview registration ───────────────────────────
@@ -55,12 +60,14 @@ class SharedStateManager {
           if (tw) { tw.cols = msg.cols; tw.rows = msg.rows; }
         }
         this._broadcast({ type: 'sync:terminalResize', id: msg.id, cols: msg.cols, rows: msg.rows }, sourceWebviewId);
+        this.syncBridge.broadcastChange({ type: 'sync:terminalResize', id: msg.id, cols: msg.cols, rows: msg.rows });
         break;
       case 'closeTerminal':
         this.terminalManager.closeTerminal(msg.id);
         this.state.terminalWindows.delete(msg.id);
         this.terminalBuffers.delete(msg.id);
         this._broadcast({ type: 'sync:terminalClosed', id: msg.id }, sourceWebviewId);
+        this.syncBridge.broadcastChange({ type: 'sync:terminalClosed', id: msg.id });
         break;
       case 'requestPasteData':
         this._handlePaste(sourceWebviewId);
@@ -73,18 +80,22 @@ class SharedStateManager {
       case 'sync:windowMoved':
         this._updateWindowPosition(msg.id, msg.x, msg.y);
         this._broadcast(msg, sourceWebviewId);
+        this.syncBridge.broadcastChange(msg);
         break;
       case 'sync:windowResized':
         this._updateWindowRect(msg.id, msg.x, msg.y, msg.w, msg.h);
         this._broadcast(msg, sourceWebviewId);
+        this.syncBridge.broadcastChange(msg);
         break;
       case 'sync:windowFocused':
         this._broadcast(msg, sourceWebviewId);
+        this.syncBridge.broadcastChange(msg);
         break;
       case 'sync:toggleChanged':
         if (msg.key === 'gridSnap') this.state.gridSnap = msg.value;
         if (msg.key === 'noOverlap') this.state.noOverlap = msg.value;
         this._broadcast(msg, sourceWebviewId);
+        this.syncBridge.broadcastChange(msg);
         break;
       case 'sync:imageWindowCreated':
         this.state.imageWindows.set(msg.id, {
@@ -94,6 +105,7 @@ class SharedStateManager {
           aspectRatio: msg.aspectRatio,
         });
         this._broadcast(msg, sourceWebviewId);
+        this.syncBridge.broadcastChange(msg);
         break;
       case 'sync:browserWindowCreated':
         this.state.browserWindows.set(msg.id, {
@@ -102,17 +114,20 @@ class SharedStateManager {
           url: msg.url,
         });
         this._broadcast(msg, sourceWebviewId);
+        this.syncBridge.broadcastChange(msg);
         break;
       case 'sync:windowClosed':
         this.state.imageWindows.delete(msg.id);
         this.state.browserWindows.delete(msg.id);
         this._broadcast(msg, sourceWebviewId);
+        this.syncBridge.broadcastChange(msg);
         break;
       case 'sync:terminalClosed':
         this.terminalManager.closeTerminal(msg.id);
         this.state.terminalWindows.delete(msg.id);
         this.terminalBuffers.delete(msg.id);
         this._broadcast(msg, sourceWebviewId);
+        this.syncBridge.broadcastChange(msg);
         break;
       case 'sync:allWindowsMoved':
         // Batch update multiple window positions (from resolveOverlaps)
@@ -122,6 +137,7 @@ class SharedStateManager {
           }
         }
         this._broadcast(msg, sourceWebviewId);
+        this.syncBridge.broadcastChange(msg);
         break;
     }
   }
@@ -141,6 +157,9 @@ class SharedStateManager {
 
     // Notify all webviews to create the terminal window UI
     this._broadcastAll({ type: 'sync:terminalCreated', id, x, y, w, h, zIndex });
+
+    // Notify other instances (they only need the UI window, pty is local)
+    this.syncBridge.broadcastChange({ type: 'sync:terminalCreated', id, x, y, w, h, zIndex });
 
     // Create actual pty (small delay so webviews set up xterm first)
     setTimeout(() => {
@@ -228,6 +247,128 @@ class SharedStateManager {
     };
   }
 
+  // ─── Restore state from a remote snapshot ───────────
+  _restoreFromSnapshot(payload) {
+    this.state.nextId = Math.max(this.state.nextId, payload.nextId || 1);
+    this.state.nextImageId = Math.max(this.state.nextImageId, payload.nextImageId || 1);
+    this.state.nextBrowserId = Math.max(this.state.nextBrowserId, payload.nextBrowserId || 1);
+    this.state.maxZIndex = Math.max(this.state.maxZIndex, payload.maxZIndex || 1);
+    this.state.gridSnap = payload.gridSnap ?? this.state.gridSnap;
+    this.state.noOverlap = payload.noOverlap ?? this.state.noOverlap;
+
+    // Merge window maps (remote wins for shared keys)
+    if (payload.terminalWindows) {
+      for (const [id, data] of payload.terminalWindows) {
+        this.state.terminalWindows.set(id, data);
+      }
+    }
+    if (payload.imageWindows) {
+      for (const [id, data] of payload.imageWindows) {
+        this.state.imageWindows.set(id, data);
+      }
+    }
+    if (payload.browserWindows) {
+      for (const [id, data] of payload.browserWindows) {
+        this.state.browserWindows.set(id, data);
+      }
+    }
+    if (payload.terminalBuffers) {
+      for (const [id, data] of payload.terminalBuffers) {
+        this.terminalBuffers.set(id, data);
+      }
+    }
+
+    // Push full snapshot to all local webviews so they rebuild UI
+    const snapshot = this.getFullSnapshot();
+    this._broadcastAll({ type: 'sync:fullSnapshot', payload: snapshot });
+  }
+
+  // ─── Apply a single remote change (from SyncBridge) ─
+  _applyRemoteChange(msg) {
+    switch (msg.type) {
+      case 'sync:terminalCreated':
+        // Remote instance created a terminal — add window UI only (no local pty)
+        if (!this.state.terminalWindows.has(msg.id)) {
+          this.state.terminalWindows.set(msg.id, {
+            x: msg.x, y: msg.y, w: msg.w, h: msg.h,
+            zIndex: msg.zIndex, cols: 80, rows: 24,
+          });
+          if (msg.zIndex > this.state.maxZIndex) this.state.maxZIndex = msg.zIndex;
+          if (msg.id >= this.state.nextId) this.state.nextId = msg.id + 1;
+        }
+        this._broadcastAll(msg);
+        break;
+
+      case 'sync:terminalResize':
+        {
+          const tw = this.state.terminalWindows.get(msg.id);
+          if (tw) { tw.cols = msg.cols; tw.rows = msg.rows; }
+        }
+        this._broadcastAll(msg);
+        break;
+
+      case 'sync:terminalClosed':
+        this.state.terminalWindows.delete(msg.id);
+        this.terminalBuffers.delete(msg.id);
+        this._broadcastAll(msg);
+        break;
+
+      case 'sync:windowMoved':
+        this._updateWindowPosition(msg.id, msg.x, msg.y);
+        this._broadcastAll(msg);
+        break;
+
+      case 'sync:windowResized':
+        this._updateWindowRect(msg.id, msg.x, msg.y, msg.w, msg.h);
+        this._broadcastAll(msg);
+        break;
+
+      case 'sync:windowFocused':
+        this._broadcastAll(msg);
+        break;
+
+      case 'sync:toggleChanged':
+        if (msg.key === 'gridSnap') this.state.gridSnap = msg.value;
+        if (msg.key === 'noOverlap') this.state.noOverlap = msg.value;
+        this._broadcastAll(msg);
+        break;
+
+      case 'sync:imageWindowCreated':
+        this.state.imageWindows.set(msg.id, {
+          x: msg.x, y: msg.y, w: msg.w, h: msg.h,
+          zIndex: ++this.state.maxZIndex,
+          imgSrc: msg.imgSrc, naturalW: msg.naturalW, naturalH: msg.naturalH,
+          aspectRatio: msg.aspectRatio,
+        });
+        this._broadcastAll(msg);
+        break;
+
+      case 'sync:browserWindowCreated':
+        this.state.browserWindows.set(msg.id, {
+          x: msg.x, y: msg.y, w: msg.w, h: msg.h,
+          zIndex: ++this.state.maxZIndex,
+          url: msg.url,
+        });
+        this._broadcastAll(msg);
+        break;
+
+      case 'sync:windowClosed':
+        this.state.imageWindows.delete(msg.id);
+        this.state.browserWindows.delete(msg.id);
+        this._broadcastAll(msg);
+        break;
+
+      case 'sync:allWindowsMoved':
+        if (Array.isArray(msg.updates)) {
+          for (const u of msg.updates) {
+            this._updateWindowPosition(u.id, u.x, u.y);
+          }
+        }
+        this._broadcastAll(msg);
+        break;
+    }
+  }
+
   // ─── Clipboard image for a specific webview ─────────
   readClipboardImage(sourceWebviewId) {
     this._handlePaste(sourceWebviewId);
@@ -235,6 +376,7 @@ class SharedStateManager {
 
   // ─── Dispose everything ─────────────────────────────
   dispose() {
+    this.syncBridge.dispose();
     this.terminalManager.dispose();
     this.webviews.clear();
   }
