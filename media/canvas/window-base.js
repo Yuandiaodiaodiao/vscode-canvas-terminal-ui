@@ -8,11 +8,13 @@ function bringToFront(id) {
   for (const win of imageWindows.values()) win.el.classList.remove('focused');
   w.el.classList.add('focused');
   w.el.style.zIndex = ++maxZIndex;
+  sendSync({ type: 'sync:windowFocused', id });
 }
 
 function closeWindow(id) {
   const w = windows.get(id);
   if (!w) return;
+  sendSync({ type: 'sync:terminalClosed', id });
   vscodeApi.postMessage({ type: 'closeTerminal', id });
   w.xterm.dispose();
   w.el.remove();
@@ -79,12 +81,15 @@ function resolveOverlaps(draggedId) {
     if (!moved) break;
   }
 
-  // Write positions back
+  // Write positions back and collect updates for sync
+  const syncUpdates = [];
   for (const rect of allWins) {
     rect.ref.x = Math.round(rect.x);
     rect.ref.y = Math.round(rect.y);
     rect.ref.el.style.left = rect.ref.x + 'px';
     rect.ref.el.style.top = rect.ref.y + 'px';
+
+    syncUpdates.push({ id: rect.id, x: rect.ref.x, y: rect.ref.y });
 
     // If terminal, refit
     if (rect.src === 'windows' && rect.ref.fitAddon) {
@@ -95,4 +100,7 @@ function resolveOverlaps(draggedId) {
     }
   }
   updateMinimap();
+
+  // Batch sync all moved windows
+  sendSync({ type: 'sync:allWindowsMoved', updates: syncUpdates });
 }

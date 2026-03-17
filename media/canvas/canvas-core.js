@@ -38,6 +38,7 @@ function loadScript(src) {
 }
 
 let xtermReady = false;
+let _isSyncing = false;
 
 // ─── State ───────────────────────────────────────────
 const vscodeApi = acquireVsCodeApi();

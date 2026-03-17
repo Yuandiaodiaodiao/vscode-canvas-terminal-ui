@@ -1,6 +1,6 @@
 const vscode = require('vscode');
 const { getWebviewContent } = require('./webview');
-const { TerminalManager } = require('./terminal-manager');
+const { getSharedState } = require('./shared-state');
 
 class TerminalCanvasPanel {
   static currentPanel = undefined;
@@ -30,13 +30,15 @@ class TerminalCanvasPanel {
   constructor(panel, context) {
     this.panel = panel;
     this.context = context;
-    this.terminalManager = new TerminalManager();
-    this.terminalManager.setWebview(panel.webview);
+    this.webviewId = 'panel_' + Date.now();
 
     this.panel.webview.html = getWebviewContent(this.panel.webview, context.extensionUri);
 
+    const sharedState = getSharedState();
+    sharedState.registerWebview(this.webviewId, panel.webview, 'panel');
+
     this.panel.webview.onDidReceiveMessage(
-      (msg) => this.terminalManager.handleMessage(msg),
+      (msg) => sharedState.handleMessage(msg, this.webviewId),
       null,
       context.subscriptions
     );
@@ -45,12 +47,12 @@ class TerminalCanvasPanel {
   }
 
   readClipboardImage() {
-    this.terminalManager.readClipboardImage();
+    getSharedState().readClipboardImage(this.webviewId);
   }
 
   dispose() {
     TerminalCanvasPanel.currentPanel = undefined;
-    this.terminalManager.dispose();
+    getSharedState().unregisterWebview(this.webviewId);
     this.panel.dispose();
   }
 }

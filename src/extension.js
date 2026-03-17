@@ -1,6 +1,7 @@
 const vscode = require('vscode');
 const { TerminalCanvasPanel } = require('./panel');
 const { SidebarProvider } = require('./sidebar');
+const { getSharedState } = require('./shared-state');
 
 function activate(context) {
   const sidebarProvider = new SidebarProvider(context);
@@ -15,14 +16,20 @@ function activate(context) {
   });
 
   const pasteImageCommand = vscode.commands.registerCommand('terminalCanvas.pasteImage', () => {
+    const sharedState = getSharedState();
+    // Send to panel if it exists, otherwise sidebar
     if (TerminalCanvasPanel.currentPanel) {
-      TerminalCanvasPanel.currentPanel.readClipboardImage();
+      sharedState.readClipboardImage(TerminalCanvasPanel.currentPanel.webviewId);
+    } else if (sidebarProvider.webviewId) {
+      sharedState.readClipboardImage(sidebarProvider.webviewId);
     }
   });
 
   context.subscriptions.push(openCommand, pasteImageCommand);
 }
 
-function deactivate() {}
+function deactivate() {
+  getSharedState().dispose();
+}
 
 module.exports = { activate, deactivate };

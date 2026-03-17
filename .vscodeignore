@@ -2,3 +2,10 @@
 .vscode-test/**
 node_modules/**
 .gitignore
+.ftp/**
+.snapshots/**
+.git/**
+chrome-extension/**
+plugins/**
+CLAUDE.md
+*.vsix

@@ -1,0 +1,250 @@
+const { TerminalManager } = require('./terminal-manager');
+
+const BUFFER_MAX = 512 * 1024;
+
+class SharedStateManager {
+  constructor() {
+    this.terminalManager = new TerminalManager();
+    this.webviews = new Map(); // webviewId -> { webview, type: 'sidebar'|'panel' }
+
+    // Canonical canvas state (pure data, no DOM)
+    this.state = {
+      nextId: 1,
+      nextImageId: 1,
+      nextBrowserId: 1,
+      maxZIndex: 1,
+      gridSnap: false,
+      noOverlap: false,
+      terminalWindows: new Map(),  // id -> { x, y, w, h, zIndex, cols, rows }
+      imageWindows: new Map(),     // id -> { x, y, w, h, zIndex, imgSrc, naturalW, naturalH, aspectRatio }
+      browserWindows: new Map(),   // id -> { x, y, w, h, zIndex, url }
+    };
+
+    // Terminal output buffer for late-joining webviews
+    this.terminalBuffers = new Map(); // id -> string
+
+    // Override TerminalManager.postMessage to intercept all output
+    this.terminalManager.postMessage = (msg) => this._onTerminalMessage(msg);
+  }
+
+  // ─── Webview registration ───────────────────────────
+  registerWebview(webviewId, webview, type) {
+    this.webviews.set(webviewId, { webview, type });
+    // Send full snapshot so the new webview can reconstruct everything
+    const snapshot = this.getFullSnapshot();
+    webview.postMessage({ type: 'sync:fullSnapshot', payload: snapshot });
+  }
+
+  unregisterWebview(webviewId) {
+    this.webviews.delete(webviewId);
+    // Do NOT dispose TerminalManager — state persists
+  }
+
+  // ─── Handle messages from any webview ───────────────
+  handleMessage(msg, sourceWebviewId) {
+    switch (msg.type) {
+      // Terminal messages → shared TerminalManager
+      case 'input':
+        this.terminalManager.sendInput(msg.id, msg.data);
+        break;
+      case 'resize':
+        this.terminalManager.resizeTerminal(msg.id, msg.cols, msg.rows);
+        // Update state and broadcast
+        {
+          const tw = this.state.terminalWindows.get(msg.id);
+          if (tw) { tw.cols = msg.cols; tw.rows = msg.rows; }
+        }
+        this._broadcast({ type: 'sync:terminalResize', id: msg.id, cols: msg.cols, rows: msg.rows }, sourceWebviewId);
+        break;
+      case 'closeTerminal':
+        this.terminalManager.closeTerminal(msg.id);
+        this.state.terminalWindows.delete(msg.id);
+        this.terminalBuffers.delete(msg.id);
+        this._broadcast({ type: 'sync:terminalClosed', id: msg.id }, sourceWebviewId);
+        break;
+      case 'requestPasteData':
+        this._handlePaste(sourceWebviewId);
+        break;
+
+      // Canvas state sync messages
+      case 'sync:requestTerminal':
+        this._handleRequestTerminal(msg, sourceWebviewId);
+        break;
+      case 'sync:windowMoved':
+        this._updateWindowPosition(msg.id, msg.x, msg.y);
+        this._broadcast(msg, sourceWebviewId);
+        break;
+      case 'sync:windowResized':
+        this._updateWindowRect(msg.id, msg.x, msg.y, msg.w, msg.h);
+        this._broadcast(msg, sourceWebviewId);
+        break;
+      case 'sync:windowFocused':
+        this._broadcast(msg, sourceWebviewId);
+        break;
+      case 'sync:toggleChanged':
+        if (msg.key === 'gridSnap') this.state.gridSnap = msg.value;
+        if (msg.key === 'noOverlap') this.state.noOverlap = msg.value;
+        this._broadcast(msg, sourceWebviewId);
+        break;
+      case 'sync:imageWindowCreated':
+        this.state.imageWindows.set(msg.id, {
+          x: msg.x, y: msg.y, w: msg.w, h: msg.h,
+          zIndex: ++this.state.maxZIndex,
+          imgSrc: msg.imgSrc, naturalW: msg.naturalW, naturalH: msg.naturalH,
+          aspectRatio: msg.aspectRatio,
+        });
+        this._broadcast(msg, sourceWebviewId);
+        break;
+      case 'sync:browserWindowCreated':
+        this.state.browserWindows.set(msg.id, {
+          x: msg.x, y: msg.y, w: msg.w, h: msg.h,
+          zIndex: ++this.state.maxZIndex,
+          url: msg.url,
+        });
+        this._broadcast(msg, sourceWebviewId);
+        break;
+      case 'sync:windowClosed':
+        this.state.imageWindows.delete(msg.id);
+        this.state.browserWindows.delete(msg.id);
+        this._broadcast(msg, sourceWebviewId);
+        break;
+      case 'sync:terminalClosed':
+        this.terminalManager.closeTerminal(msg.id);
+        this.state.terminalWindows.delete(msg.id);
+        this.terminalBuffers.delete(msg.id);
+        this._broadcast(msg, sourceWebviewId);
+        break;
+      case 'sync:allWindowsMoved':
+        // Batch update multiple window positions (from resolveOverlaps)
+        if (Array.isArray(msg.updates)) {
+          for (const u of msg.updates) {
+            this._updateWindowPosition(u.id, u.x, u.y);
+          }
+        }
+        this._broadcast(msg, sourceWebviewId);
+        break;
+    }
+  }
+
+  // ─── Internal: create terminal (host assigns ID) ────
+  _handleRequestTerminal(msg, sourceWebviewId) {
+    const id = this.state.nextId++;
+    const x = msg.x ?? 50;
+    const y = msg.y ?? 50;
+    const w = msg.w ?? 600;
+    const h = msg.h ?? 380;
+    const cols = msg.cols || 80;
+    const rows = msg.rows || 24;
+    const zIndex = ++this.state.maxZIndex;
+
+    this.state.terminalWindows.set(id, { x, y, w, h, zIndex, cols, rows });
+
+    // Notify all webviews to create the terminal window UI
+    this._broadcastAll({ type: 'sync:terminalCreated', id, x, y, w, h, zIndex });
+
+    // Create actual pty (small delay so webviews set up xterm first)
+    setTimeout(() => {
+      this.terminalManager.createTerminal(id, cols, rows);
+    }, 100);
+  }
+
+  // ─── Internal: update window position in state ──────
+  _updateWindowPosition(id, x, y) {
+    const tw = this.state.terminalWindows.get(id);
+    if (tw) { tw.x = x; tw.y = y; return; }
+    const iw = this.state.imageWindows.get(id);
+    if (iw) { iw.x = x; iw.y = y; return; }
+    const bw = this.state.browserWindows.get(id);
+    if (bw) { bw.x = x; bw.y = y; }
+  }
+
+  // ─── Internal: update window rect in state ──────────
+  _updateWindowRect(id, x, y, w, h) {
+    const tw = this.state.terminalWindows.get(id);
+    if (tw) { tw.x = x; tw.y = y; tw.w = w; tw.h = h; return; }
+    const iw = this.state.imageWindows.get(id);
+    if (iw) { iw.x = x; iw.y = y; iw.w = w; iw.h = h; return; }
+    const bw = this.state.browserWindows.get(id);
+    if (bw) { bw.x = x; bw.y = y; bw.w = w; bw.h = h; }
+  }
+
+  // ─── Internal: intercept TerminalManager output ─────
+  _onTerminalMessage(msg) {
+    if (msg.type === 'output') {
+      // Buffer for late joiners
+      let buf = this.terminalBuffers.get(msg.id) || '';
+      buf += msg.data;
+      if (buf.length > BUFFER_MAX) buf = buf.slice(-BUFFER_MAX);
+      this.terminalBuffers.set(msg.id, buf);
+    }
+    if (msg.type === 'terminated') {
+      this.state.terminalWindows.delete(msg.id);
+      this.terminalBuffers.delete(msg.id);
+    }
+    // Terminal output goes to ALL webviews
+    this._broadcastAll(msg);
+  }
+
+  // ─── Internal: paste (result goes to requester only) ─
+  async _handlePaste(sourceWebviewId) {
+    const origPost = this.terminalManager.postMessage;
+    const srcWv = this.webviews.get(sourceWebviewId);
+    this.terminalManager.postMessage = (msg) => {
+      if (srcWv) srcWv.webview.postMessage(msg);
+    };
+    await this.terminalManager.readClipboardImage();
+    this.terminalManager.postMessage = origPost;
+  }
+
+  // ─── Broadcast to all webviews EXCEPT source ────────
+  _broadcast(msg, excludeWebviewId) {
+    for (const [id, { webview }] of this.webviews) {
+      if (id !== excludeWebviewId) {
+        webview.postMessage(msg);
+      }
+    }
+  }
+
+  // ─── Broadcast to ALL webviews ──────────────────────
+  _broadcastAll(msg) {
+    for (const [, { webview }] of this.webviews) {
+      webview.postMessage(msg);
+    }
+  }
+
+  // ─── Full state snapshot for new webview ────────────
+  getFullSnapshot() {
+    return {
+      nextId: this.state.nextId,
+      nextImageId: this.state.nextImageId,
+      nextBrowserId: this.state.nextBrowserId,
+      maxZIndex: this.state.maxZIndex,
+      gridSnap: this.state.gridSnap,
+      noOverlap: this.state.noOverlap,
+      terminalWindows: Array.from(this.state.terminalWindows.entries()),
+      imageWindows: Array.from(this.state.imageWindows.entries()),
+      browserWindows: Array.from(this.state.browserWindows.entries()),
+      terminalBuffers: Array.from(this.terminalBuffers.entries()),
+    };
+  }
+
+  // ─── Clipboard image for a specific webview ─────────
+  readClipboardImage(sourceWebviewId) {
+    this._handlePaste(sourceWebviewId);
+  }
+
+  // ─── Dispose everything ─────────────────────────────
+  dispose() {
+    this.terminalManager.dispose();
+    this.webviews.clear();
+  }
+}
+
+// Singleton
+let instance = null;
+function getSharedState() {
+  if (!instance) instance = new SharedStateManager();
+  return instance;
+}
+
+module.exports = { getSharedState };

@@ -11,6 +11,7 @@ document.getElementById('btn-snap').onclick = (e) => {
   gridSnap = !gridSnap;
   e.target.style.background = gridSnap ? 'var(--vscode-button-background, #0e639c)' : '';
   e.target.style.color = gridSnap ? 'var(--vscode-button-foreground, #fff)' : '';
+  sendSync({ type: 'sync:toggleChanged', key: 'gridSnap', value: gridSnap });
 };
 
 // ─── No-overlap toggle ───────────────────────────
@@ -18,6 +19,7 @@ document.getElementById('btn-overlap').onclick = (e) => {
   noOverlap = !noOverlap;
   e.target.style.background = noOverlap ? 'var(--vscode-button-background, #0e639c)' : '';
   e.target.style.color = noOverlap ? 'var(--vscode-button-foreground, #fff)' : '';
+  sendSync({ type: 'sync:toggleChanged', key: 'noOverlap', value: noOverlap });
 };
 
 // ─── Pop-out to separate panel ─────────────────
@@ -120,7 +122,7 @@ async function layoutGrid(cols, rows) {
       const x = col * (termW + gap);
       const y = row * (termH + gap);
       await createTerminalWindow(x, y);
-      await new Promise(r => setTimeout(r, 100));
+      await new Promise(r => setTimeout(r, 200));
     }
   }
 
@@ -135,7 +137,7 @@ async function layoutStack(dir) {
     const x = dir === 'horizontal' ? i * 620 : 0;
     const y = dir === 'vertical' ? i * 400 : 0;
     await createTerminalWindow(x, y);
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise(r => setTimeout(r, 200));
   }
   setTimeout(fitAll, 300);
 }
@@ -143,6 +145,13 @@ async function layoutStack(dir) {
 // ─── Messages from extension host ────────────────
 window.addEventListener('message', (e) => {
   const msg = e.data;
+
+  // Handle sync messages from host
+  if (msg.type && msg.type.startsWith('sync:')) {
+    handleSyncMessage(msg);
+    return;
+  }
+
   switch (msg.type) {
     case 'output': {
       const w = windows.get(msg.id);
@@ -186,7 +195,7 @@ window.addEventListener('message', (e) => {
   }
 });
 
-// ─── Init: load xterm and create first terminal ──
+// ─── Init: load xterm and wait for snapshot ──────
 async function init() {
   try {
     // Load from local bundled files
@@ -213,8 +222,13 @@ async function init() {
     }
   }
 
-  // Create initial terminal
-  createTerminalWindow(50, 50);
+  // Wait a moment for potential snapshot from host
+  await new Promise(r => setTimeout(r, 300));
+
+  // Only create initial terminal if no snapshot provided existing state
+  if (!_snapshotReceived && windows.size === 0) {
+    createTerminalWindow(50, 50);
+  }
 }
 
 init().catch(e => console.error('[TerminalCanvas] init failed:', e));

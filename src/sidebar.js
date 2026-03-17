@@ -1,12 +1,12 @@
 const vscode = require('vscode');
 const { TerminalCanvasPanel } = require('./panel');
 const { getWebviewContent } = require('./webview');
-const { TerminalManager } = require('./terminal-manager');
+const { getSharedState } = require('./shared-state');
 
 class SidebarProvider {
   constructor(context) {
     this.context = context;
-    this.terminalManager = new TerminalManager();
+    this.webviewId = 'sidebar_' + Date.now();
   }
 
   resolveWebviewView(webviewView) {
@@ -20,7 +20,8 @@ class SidebarProvider {
 
     webviewView.webview.html = getWebviewContent(webviewView.webview, this.context.extensionUri);
 
-    this.terminalManager.setWebview(webviewView.webview);
+    const sharedState = getSharedState();
+    sharedState.registerWebview(this.webviewId, webviewView.webview, 'sidebar');
 
     webviewView.webview.onDidReceiveMessage((msg) => {
       console.log('[TerminalCanvas] sidebar received message:', msg.type, msg);
@@ -28,11 +29,11 @@ class SidebarProvider {
         TerminalCanvasPanel.createOrShow(this.context);
         return;
       }
-      this.terminalManager.handleMessage(msg);
+      sharedState.handleMessage(msg, this.webviewId);
     });
 
     webviewView.onDidDispose(() => {
-      this.terminalManager.dispose();
+      getSharedState().unregisterWebview(this.webviewId);
     });
   }
 }

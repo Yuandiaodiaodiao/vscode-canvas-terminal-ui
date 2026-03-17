@@ -14,6 +14,7 @@ function getWebviewContent(webview, extensionUri) {
   const terminalWindowJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'canvas', 'terminal-window.js'));
   const imageWindowJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'canvas', 'image-window.js'));
   const browserWindowJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'canvas', 'browser-window.js'));
+  const syncHandlerJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'canvas', 'sync-handler.js'));
   const initJsUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'canvas', 'init.js'));
 
   return /*html*/ `<!DOCTYPE html>
@@ -79,6 +80,7 @@ function getWebviewContent(webview, extensionUri) {
   <script nonce="${nonce}" src="${terminalWindowJsUri}"></script>
   <script nonce="${nonce}" src="${imageWindowJsUri}"></script>
   <script nonce="${nonce}" src="${browserWindowJsUri}"></script>
+  <script nonce="${nonce}" src="${syncHandlerJsUri}"></script>
   <script nonce="${nonce}" src="${initJsUri}"></script>
 </body>
 </html>`;

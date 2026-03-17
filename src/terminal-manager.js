@@ -4,11 +4,8 @@ const os = require('os');
 class TerminalManager {
   constructor() {
     this.terminals = new Map(); // id -> { ptyProcess }
-    this.webview = null; // set by caller
-  }
-
-  setWebview(webview) {
-    this.webview = webview;
+    // postMessage is an overridable function; SharedStateManager replaces it
+    this.postMessage = () => {};
   }
 
   handleMessage(msg) {
@@ -218,12 +215,6 @@ class TerminalManager {
       imageHeight,
       text,
     });
-  }
-
-  postMessage(msg) {
-    if (this.webview) {
-      this.webview.postMessage(msg);
-    }
   }
 
   dispose() {
