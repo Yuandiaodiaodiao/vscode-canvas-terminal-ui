@@ -154,6 +154,35 @@ body {
   white-space: nowrap;
 }
 
+.terminal-window .title-bar .title-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.terminal-window .title-bar .title-tag.local {
+  background: rgba(13, 188, 121, 0.25);
+  color: #0dbc79;
+}
+
+.terminal-window .title-bar .title-tag.remote {
+  background: rgba(36, 114, 200, 0.25);
+  color: #3b8eea;
+}
+
+.terminal-window .title-bar .title-cwd {
+  color: var(--vscode-descriptionForeground, #888);
+  font-size: 11px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .terminal-window .title-bar .title-btn {
   width: 22px;
   height: 22px;

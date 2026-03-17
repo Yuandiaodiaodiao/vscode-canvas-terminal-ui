@@ -84,9 +84,20 @@ async function _createTerminalWindowFromDef(id, def) {
     quickBtnsHtml += '<button class="quick-cmd" data-cmd-index="' + i + '" title="Run: ' + cmd.command.replace('\n', ' ⏎') + '">' + cmd.label + '</button>';
   });
 
+  // Build title: show ownership indicator + cwd
+  const isLocal = def.isLocal !== false; // default true for snapshot-restored locals
+  const ownerTag = isLocal
+    ? '<span class="title-tag local" title="Local process">local</span>'
+    : '<span class="title-tag remote" title="Remote process (pid ' + (def.ownerPid || '?') + ')">remote</span>';
+  const cwdText = def.cwd || '';
+  const cwdHtml = cwdText
+    ? '<span class="title-cwd" title="' + cwdText + '">' + cwdText + '</span>'
+    : '<span class="title-cwd"></span>';
+
   el.innerHTML =
     '<div class="title-bar">' +
-      '<span class="title">Terminal #' + id + '</span>' +
+      ownerTag +
+      cwdHtml +
       quickBtnsHtml +
       '<button class="title-btn close" title="Close">×</button>' +
     '</div>' +
@@ -169,6 +180,17 @@ async function _createTerminalWindowFromDef(id, def) {
 
   // Ensure nextId stays ahead
   if (id >= nextId) nextId = id + 1;
+}
+
+// ─── Update terminal title when info arrives ─────────
+function _updateTerminalTitle(id, info) {
+  const winData = windows.get(id);
+  if (!winData || !winData.el) return;
+  const cwdSpan = winData.el.querySelector('.title-cwd');
+  if (cwdSpan && info.cwd) {
+    cwdSpan.textContent = info.cwd;
+    cwdSpan.title = info.cwd;
+  }
 }
 
 // ─── Drag setup (shared for both sync-created and user-created terminals) ───
@@ -647,6 +669,9 @@ function handleSyncMessage(msg) {
         break;
       case 'sync:terminalCreated':
         _createTerminalWindowFromDef(msg.id, msg);
+        break;
+      case 'sync:terminalInfo':
+        _updateTerminalTitle(msg.id, msg);
         break;
       case 'sync:terminalClosed':
         _destroyTerminalWindowLocal(msg.id);

@@ -65,7 +65,10 @@ class TerminalManager {
       env,
     });
 
-    this.terminals.set(id, { ptyProcess });
+    this.terminals.set(id, { ptyProcess, cwd });
+
+    // Notify host of the initial cwd
+    this.postMessage({ type: 'terminalInfo', id, cwd });
 
     ptyProcess.onData((data) => {
       this.postMessage({ type: 'output', id, data });
