@@ -1,0 +1,30 @@
+<idea-plugin>
+    <id>com.terminalcanvas</id>
+    <name>Terminal Canvas</name>
+    <version>1.0.0</version>
+    <vendor>Terminal Canvas</vendor>
+    <description><![CDATA[
+        Infinite canvas workspace with draggable terminal, image, and browser windows.
+        Create, arrange, and resize multiple terminals on a zoomable canvas.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="Terminal Canvas"
+                    anchor="bottom"
+                    factoryClass="com.terminalcanvas.TerminalCanvasToolWindow"
+                    icon="/icons/terminal-canvas.svg"/>
+    </extensions>
+
+    <actions>
+        <action id="terminalCanvas.open"
+                class="com.terminalcanvas.TerminalCanvasAction"
+                text="Open Terminal Canvas"
+                description="Open the Terminal Canvas workspace"
+                icon="/icons/terminal-canvas.svg">
+            <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift T"/>
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

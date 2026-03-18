@@ -41,8 +41,10 @@ function getWebviewContent(webview, extensionUri) {
     <div class="separator"></div>
     <button id="btn-snap" class="secondary" title="Toggle grid snap">Grid</button>
     <button id="btn-overlap" class="secondary" title="Toggle overlap prevention">No Overlap</button>
+    <div class="separator"></div>
+    <button id="btn-swap-scroll" class="secondary" title="Swap scroll and zoom shortcuts">🔄 Scroll⇄Zoom</button>
     <div class="spacer"></div>
-    <span class="hint">拖拽平移 | 滚轮上下 | Shift+滚轮左右 | Cmd/Ctrl+滚轮缩放 | Ctrl+V 粘贴图片/网页</span>
+    <span class="hint" id="hint-text">拖拽平移 | 滚轮上下 | Shift+滚轮左右 | Cmd/Ctrl+滚轮缩放 | Ctrl+V 粘贴图片/网页</span>
     <button id="btn-pop-out" class="secondary" title="Open in separate panel" style="font-size:14px;padding:4px 6px;">&#8599;</button>
   </div>
 

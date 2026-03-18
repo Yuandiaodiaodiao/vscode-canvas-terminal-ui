@@ -22,6 +22,20 @@ document.getElementById('btn-overlap').onclick = (e) => {
   sendSync({ type: 'sync:toggleChanged', key: 'noOverlap', value: noOverlap });
 };
 
+// ─── Swap scroll/zoom toggle ────────────────────
+document.getElementById('btn-swap-scroll').onclick = (e) => {
+  swapScrollZoom = !swapScrollZoom;
+  e.target.style.background = swapScrollZoom ? 'var(--vscode-button-background, #0e639c)' : '';
+  e.target.style.color = swapScrollZoom ? 'var(--vscode-button-foreground, #fff)' : '';
+  const hint = document.getElementById('hint-text');
+  if (hint) {
+    hint.textContent = swapScrollZoom
+      ? '拖拽平移 | 滚轮缩放 | Shift+滚轮左右 | Cmd/Ctrl+滚轮上下 | Ctrl+V 粘贴图片/网页'
+      : '拖拽平移 | 滚轮上下 | Shift+滚轮左右 | Cmd/Ctrl+滚轮缩放 | Ctrl+V 粘贴图片/网页';
+  }
+  sendSync({ type: 'sync:toggleChanged', key: 'swapScrollZoom', value: swapScrollZoom });
+};
+
 // ─── Pop-out to separate panel ─────────────────
 document.getElementById('btn-pop-out').onclick = () => {
   vscodeApi.postMessage({ type: 'openInPanel' });

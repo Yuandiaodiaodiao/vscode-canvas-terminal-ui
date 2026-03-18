@@ -18,6 +18,7 @@ class SharedStateManager {
       maxZIndex: 1,
       gridSnap: false,
       noOverlap: false,
+      swapScrollZoom: false,
       terminalWindows: new Map(),  // id -> { x, y, w, h, zIndex, cols, rows, ownerPid }
       imageWindows: new Map(),     // id -> { x, y, w, h, zIndex, imgSrc, naturalW, naturalH, aspectRatio }
       browserWindows: new Map(),   // id -> { x, y, w, h, zIndex, url }
@@ -119,6 +120,7 @@ class SharedStateManager {
       case 'sync:toggleChanged':
         if (msg.key === 'gridSnap') this.state.gridSnap = msg.value;
         if (msg.key === 'noOverlap') this.state.noOverlap = msg.value;
+        if (msg.key === 'swapScrollZoom') this.state.swapScrollZoom = msg.value;
         this._broadcast(msg, sourceWebviewId);
         this.syncBridge.broadcastChange(msg);
         break;
@@ -305,6 +307,7 @@ class SharedStateManager {
       maxZIndex: this.state.maxZIndex,
       gridSnap: this.state.gridSnap,
       noOverlap: this.state.noOverlap,
+      swapScrollZoom: this.state.swapScrollZoom,
       terminalWindows,
       imageWindows: Array.from(this.state.imageWindows.entries()),
       browserWindows: Array.from(this.state.browserWindows.entries()),
@@ -320,6 +323,7 @@ class SharedStateManager {
     this.state.maxZIndex = Math.max(this.state.maxZIndex, payload.maxZIndex || 1);
     this.state.gridSnap = payload.gridSnap ?? this.state.gridSnap;
     this.state.noOverlap = payload.noOverlap ?? this.state.noOverlap;
+    this.state.swapScrollZoom = payload.swapScrollZoom ?? this.state.swapScrollZoom;
 
     // Merge window maps (remote wins for shared keys)
     if (payload.terminalWindows) {
@@ -428,6 +432,7 @@ class SharedStateManager {
       case 'sync:toggleChanged':
         if (msg.key === 'gridSnap') this.state.gridSnap = msg.value;
         if (msg.key === 'noOverlap') this.state.noOverlap = msg.value;
+        if (msg.key === 'swapScrollZoom') this.state.swapScrollZoom = msg.value;
         this._broadcastAll(msg);
         break;
 

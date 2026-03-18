@@ -1,4 +1,4 @@
-name: Build & Release VSIX
+name: Build & Release
 
 on:
   push:
@@ -6,7 +6,8 @@ on:
       - 'v*'
 
 jobs:
-  build:
+  build-vscode:
+    name: Build VSCode Extension
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -30,8 +31,55 @@ jobs:
           name: terminal-canvas-vsix
           path: '*.vsix'
 
+  build-jetbrains:
+    name: Build JetBrains Plugin
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build plugin
+        working-directory: jetbrains-terminal-canvas
+        run: ./gradlew buildPlugin
+
+      - name: Upload JetBrains plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terminal-canvas-jetbrains
+          path: 'jetbrains-terminal-canvas/build/distributions/*.zip'
+
+  release:
+    name: Create GitHub Release
+    needs: [build-vscode, build-jetbrains]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download VSCode artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: terminal-canvas-vsix
+          path: artifacts
+
+      - name: Download JetBrains artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: terminal-canvas-jetbrains
+          path: artifacts
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: '*.vsix'
+          files: 'artifacts/*'
           generate_release_notes: true

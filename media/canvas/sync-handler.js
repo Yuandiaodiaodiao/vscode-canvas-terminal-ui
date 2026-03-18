@@ -20,6 +20,7 @@ async function applyFullSnapshot(snapshot) {
     maxZIndex = snapshot.maxZIndex;
     gridSnap = snapshot.gridSnap;
     noOverlap = snapshot.noOverlap;
+    swapScrollZoom = snapshot.swapScrollZoom || false;
     _updateToggleButtons();
 
     // 2. Clear existing windows
@@ -649,6 +650,7 @@ function _applyWindowResize(id, x, y, w, h) {
 function _updateToggleButtons() {
   const snapBtn = document.getElementById('btn-snap');
   const overlapBtn = document.getElementById('btn-overlap');
+  const swapBtn = document.getElementById('btn-swap-scroll');
   if (snapBtn) {
     snapBtn.style.background = gridSnap ? 'var(--vscode-button-background, #0e639c)' : '';
     snapBtn.style.color = gridSnap ? 'var(--vscode-button-foreground, #fff)' : '';
@@ -656,6 +658,16 @@ function _updateToggleButtons() {
   if (overlapBtn) {
     overlapBtn.style.background = noOverlap ? 'var(--vscode-button-background, #0e639c)' : '';
     overlapBtn.style.color = noOverlap ? 'var(--vscode-button-foreground, #fff)' : '';
+  }
+  if (swapBtn) {
+    swapBtn.style.background = swapScrollZoom ? 'var(--vscode-button-background, #0e639c)' : '';
+    swapBtn.style.color = swapScrollZoom ? 'var(--vscode-button-foreground, #fff)' : '';
+  }
+  const hint = document.getElementById('hint-text');
+  if (hint) {
+    hint.textContent = swapScrollZoom
+      ? '拖拽平移 | 滚轮缩放 | Shift+滚轮左右 | Cmd/Ctrl+滚轮上下 | Ctrl+V 粘贴图片/网页'
+      : '拖拽平移 | 滚轮上下 | Shift+滚轮左右 | Cmd/Ctrl+滚轮缩放 | Ctrl+V 粘贴图片/网页';
   }
 }
 
@@ -696,6 +708,7 @@ function handleSyncMessage(msg) {
       case 'sync:toggleChanged':
         if (msg.key === 'gridSnap') gridSnap = msg.value;
         if (msg.key === 'noOverlap') noOverlap = msg.value;
+        if (msg.key === 'swapScrollZoom') swapScrollZoom = msg.value;
         _updateToggleButtons();
         break;
       case 'sync:imageWindowCreated':
