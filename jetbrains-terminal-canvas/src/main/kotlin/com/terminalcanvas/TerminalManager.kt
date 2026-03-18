@@ -57,17 +57,19 @@ class TerminalManager(private val project: Project) {
             LOG.info("[TC] PtyProcess started: id=$id pid=${try { ptyProcess.pid() } catch(_: Exception) { -1 }}")
 
             // Reader thread for pty output
-            val inputStream = ptyProcess.inputStream
+            // Use InputStreamReader to properly decode multi-byte UTF-8 characters
+            // (raw byte reads can split mid-character, causing garbled Chinese text)
+            val reader = InputStreamReader(ptyProcess.inputStream, Charsets.UTF_8)
             val readerThread = Thread({
                 try {
-                    val buf = ByteArray(8192)
+                    val buf = CharArray(4096)
                     while (true) {
-                        val n = inputStream.read(buf)
+                        val n = reader.read(buf)
                         if (n == -1) {
                             LOG.info("[TC] pty reader EOF: id=$id")
                             break
                         }
-                        val data = String(buf, 0, n, Charsets.UTF_8)
+                        val data = String(buf, 0, n)
                         onOutput?.invoke(id, data)
                     }
                 } catch (e: Exception) {
