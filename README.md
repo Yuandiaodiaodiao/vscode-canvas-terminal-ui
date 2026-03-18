@@ -1,4 +1,5 @@
 # Terminal Canvas
+<img width="1376" height="768" alt="Gemini_Generated_Image_vt94rhvt94rhvt94" src="https://github.com/user-attachments/assets/d3fe4c26-b904-48a7-88c0-5e8b709407ca" />
 
 <img width="1088" height="1034" alt="Clipboard_Screenshot_1773673099" src="https://github.com/user-attachments/assets/f0d1b37e-df0b-441d-b943-141eb73b13f0" />
 
