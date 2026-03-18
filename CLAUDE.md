@@ -90,3 +90,77 @@ Webview → Extension: `createTerminal`, `input`, `resize`, `closeTerminal`, `op
 ### xterm.js 加载
 
 本地打包在 `media/xterm/`(xterm 5.3.0 + fit-addon 0.8.0),加载失败则 fallback 到 jsDelivr CDN。
+
+---
+
+## JetBrains 插件 (`jetbrains-terminal-canvas/`)
+
+VSCode 版的 JetBrains 平台移植，核心思路：**Webview 层 (JS/CSS) 100% 复用，Extension Host 层用 Kotlin 重写**。
+
+### 开发命令
+
+```bash
+cd jetbrains-terminal-canvas
+
+# 构建插件 zip（产物在 build/distributions/）
+JAVA_HOME=$(/usr/libexec/java_home -v 22) ./gradlew buildPlugin
+
+# 启动沙箱 IDE 调试
+JAVA_HOME=$(/usr/libexec/java_home -v 22) ./gradlew runIde
+```
+
+需要 JDK 22（本机已安装），Gradle Wrapper 自动下载 Gradle 8.10。
+
+### 架构映射
+
+| VSCode | JetBrains |
+|--------|-----------|
+| Extension Host (Node.js) | Plugin (Kotlin, JVM) |
+| Webview (iframe sandbox) | JCEF (JBCefBrowser) |
+| node-pty | pty4j (IntelliJ 内置) |
+| `acquireVsCodeApi().postMessage()` | `JBCefJSQuery` + bridge shim |
+| `webview.postMessage()` | `cefBrowser.executeJavaScript()` + base64 编码 |
+| WebviewPanel | Tool Window + JBCefBrowser |
+| vscode.commands | AnAction |
+| 剪贴板 (electron/osascript/xclip) | `java.awt.Toolkit` 统一 API |
+
+### 项目结构
+
+```
+jetbrains-terminal-canvas/
+├── build.gradle.kts                  # IntelliJ Platform Gradle Plugin 2.2.1
+├── settings.gradle.kts
+├── gradle.properties
+├── gradlew                           # Gradle Wrapper
+├── src/main/
+│   ├── kotlin/com/terminalcanvas/
+│   │   ├── TerminalCanvasAction.kt       # 打开画布的 Action (Ctrl+Shift+T)
+│   │   ├── TerminalCanvasToolWindow.kt   # Tool Window 工厂
+│   │   ├── CanvasPanel.kt               # JCEF 浏览器面板 + 消息桥 + HTML 生成
+│   │   ├── TerminalManager.kt           # pty4j 终端进程管理
+│   │   ├── SharedState.kt               # 画布状态管理
+│   │   └── ClipboardHelper.kt           # Java AWT 剪贴板读取
+│   └── resources/
+│       ├── META-INF/plugin.xml           # 插件描述
+│       ├── icons/terminal-canvas.svg     # Tool Window 图标
+│       └── webview/                      # ← 从 media/ 复制，JS 零修改
+│           ├── canvas/*.js, styles.css   # 7 个 JS + 1 个 CSS（仅 init.js 有微小适配）
+│           └── xterm/*.js, xterm.css     # xterm 5.3.0 + fit-addon
+```
+
+### 消息桥实现
+
+通过在 HTML 中注入 bridge shim 实现 **canvas JS 文件零修改**：
+
+1. `window.acquireVsCodeApi()` 被 polyfill，`postMessage()` 转发到 `JBCefJSQuery`
+2. Kotlin→JS 消息通过 `cefBrowser.executeJavaScript()` 调用 `window._onHostMessage()`，JSON 用 base64 编码避免转义问题
+3. xterm.js/CSS 作为 inline `<script>`/`<style>` 预加载，`init.js` 检测 `_xtermPreloaded` 跳过动态加载
+4. `--vscode-*` CSS 变量在 HTML `<style>` 中映射为 JetBrains 主题色值
+
+### 与 VSCode 版的差异
+
+- **无 multi-instance IPC**：JetBrains 版为单实例，不需要 SyncBridge / TerminalIOBridge
+- **无 pop-out 按钮**：已在 Tool Window 中，`btn-pop-out` 隐藏
+- **剪贴板**：Java AWT 统一处理，无需平台分支脚本
+- `init.js` 唯一改动：添加 `_xtermPreloaded` 检测（3 行）
+
