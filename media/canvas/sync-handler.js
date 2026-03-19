@@ -198,6 +198,8 @@ async function _createTerminalWindowFromDef(id, def) {
 
   // Ensure nextId stays ahead
   if (id >= nextId) nextId = id + 1;
+
+  bringToFront(id);
 }
 
 // ─── Update terminal title when info arrives ─────────

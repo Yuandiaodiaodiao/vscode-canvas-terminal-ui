@@ -285,14 +285,28 @@ document.addEventListener('wheel', (e) => {
     canvasX -= scrollAmount;
     updateCanvasTransform();
   } else if (shouldZoom) {
-    // Zoom toward cursor
-    e.preventDefault();
-    e.stopPropagation();
-    const rect = viewport.getBoundingClientRect();
-    const cx = e.clientX - rect.left;
-    const cy = e.clientY - rect.top;
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    zoomTo(zoom * delta, cx, cy);
+    // Check if over a terminal body — let xterm handle it
+    const target = e.target;
+    let inTerminal = false;
+    let node = target;
+    while (node && node !== document) {
+      if (node.classList && node.classList.contains('terminal-body')) {
+        inTerminal = true;
+        break;
+      }
+      node = node.parentElement;
+    }
+    if (!inTerminal) {
+      // Zoom toward cursor
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = viewport.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      zoomTo(zoom * delta, cx, cy);
+    }
+    // Over terminal → don't prevent, let xterm scroll
   } else if (shouldPan) {
     // Check if over a terminal body — let xterm handle it
     const target = e.target;
