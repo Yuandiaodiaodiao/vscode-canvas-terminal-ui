@@ -118,16 +118,33 @@ async function _createTerminalWindowFromDef(id, def) {
   xtermContainer.style.width = '100%';
   xtermContainer.style.height = '100%';
 
+  // Read terminal theme from CSS variables (set by JetBrains theme), fallback to dark defaults
+  const cs = getComputedStyle(document.documentElement);
+  const tv = (name, fallback) => cs.getPropertyValue(name).trim() || fallback;
+
   const xterm = new Terminal({
     fontSize: 13,
     fontFamily: "var(--vscode-editor-fontFamily, 'Courier New', monospace)",
     theme: {
-      background: '#1e1e1e', foreground: '#d4d4d4', cursor: '#d4d4d4',
-      black: '#000000', red: '#cd3131', green: '#0dbc79', yellow: '#e5e510',
-      blue: '#2472c8', magenta: '#bc3fbc', cyan: '#11a8cd', white: '#e5e5e5',
-      brightBlack: '#666666', brightRed: '#f14c4c', brightGreen: '#23d18b',
-      brightYellow: '#f5f543', brightBlue: '#3b8eea', brightMagenta: '#d670d6',
-      brightCyan: '#29b8db', brightWhite: '#e5e5e5',
+      background: tv('--tc-terminal-background', '#1e1e1e'),
+      foreground: tv('--tc-terminal-foreground', '#d4d4d4'),
+      cursor: tv('--tc-terminal-cursor', '#d4d4d4'),
+      black: tv('--tc-terminal-black', '#000000'),
+      red: tv('--tc-terminal-red', '#cd3131'),
+      green: tv('--tc-terminal-green', '#0dbc79'),
+      yellow: tv('--tc-terminal-yellow', '#e5e510'),
+      blue: tv('--tc-terminal-blue', '#2472c8'),
+      magenta: tv('--tc-terminal-magenta', '#bc3fbc'),
+      cyan: tv('--tc-terminal-cyan', '#11a8cd'),
+      white: tv('--tc-terminal-white', '#e5e5e5'),
+      brightBlack: tv('--tc-terminal-brightBlack', '#666666'),
+      brightRed: tv('--tc-terminal-brightRed', '#f14c4c'),
+      brightGreen: tv('--tc-terminal-brightGreen', '#23d18b'),
+      brightYellow: tv('--tc-terminal-brightYellow', '#f5f543'),
+      brightBlue: tv('--tc-terminal-brightBlue', '#3b8eea'),
+      brightMagenta: tv('--tc-terminal-brightMagenta', '#d670d6'),
+      brightCyan: tv('--tc-terminal-brightCyan', '#29b8db'),
+      brightWhite: tv('--tc-terminal-brightWhite', '#e5e5e5'),
     },
     cursorBlink: true, allowTransparency: true, scrollback: 5000, allowProposedApi: true,
   });

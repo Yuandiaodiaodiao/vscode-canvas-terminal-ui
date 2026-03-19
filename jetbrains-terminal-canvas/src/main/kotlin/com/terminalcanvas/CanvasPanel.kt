@@ -448,6 +448,36 @@ $themeVars
         // Font family
         val fontFamily = "'JetBrains Mono', 'Consolas', 'Courier New', monospace"
 
+        // Terminal ANSI colors from editor color scheme
+        val termBg = editorScheme?.getColor(com.intellij.execution.ui.ConsoleViewContentType.CONSOLE_BACKGROUND_KEY)
+            ?: editorScheme?.defaultBackground
+            ?: if (isDark) java.awt.Color(0x1e, 0x1e, 0x1e) else java.awt.Color(0xff, 0xff, 0xff)
+        val termFg = editorScheme?.getAttributes(com.intellij.execution.ui.ConsoleViewContentType.NORMAL_OUTPUT_KEY)?.foregroundColor
+            ?: editorScheme?.defaultForeground
+            ?: if (isDark) java.awt.Color(0xd4, 0xd4, 0xd4) else java.awt.Color(0x00, 0x00, 0x00)
+        val termCursor = termFg
+
+        // Read ANSI colors from the editor console color scheme
+        fun ansiColor(key: com.intellij.openapi.editor.colors.TextAttributesKey, fallback: java.awt.Color): java.awt.Color {
+            return editorScheme?.getAttributes(key)?.foregroundColor ?: fallback
+        }
+        val ansiBlack = ansiColor(com.intellij.execution.process.ConsoleHighlighter.BLACK, if (isDark) java.awt.Color(0x00, 0x00, 0x00) else java.awt.Color(0x00, 0x00, 0x00))
+        val ansiRed = ansiColor(com.intellij.execution.process.ConsoleHighlighter.RED, if (isDark) java.awt.Color(0xcd, 0x31, 0x31) else java.awt.Color(0xcd, 0x31, 0x31))
+        val ansiGreen = ansiColor(com.intellij.execution.process.ConsoleHighlighter.GREEN, if (isDark) java.awt.Color(0x0d, 0xbc, 0x79) else java.awt.Color(0x00, 0x80, 0x00))
+        val ansiYellow = ansiColor(com.intellij.execution.process.ConsoleHighlighter.YELLOW, if (isDark) java.awt.Color(0xe5, 0xe5, 0x10) else java.awt.Color(0x80, 0x80, 0x00))
+        val ansiBlue = ansiColor(com.intellij.execution.process.ConsoleHighlighter.BLUE, if (isDark) java.awt.Color(0x24, 0x72, 0xc8) else java.awt.Color(0x00, 0x00, 0xee))
+        val ansiMagenta = ansiColor(com.intellij.execution.process.ConsoleHighlighter.MAGENTA, if (isDark) java.awt.Color(0xbc, 0x3f, 0xbc) else java.awt.Color(0xcd, 0x00, 0xcd))
+        val ansiCyan = ansiColor(com.intellij.execution.process.ConsoleHighlighter.CYAN, if (isDark) java.awt.Color(0x11, 0xa8, 0xcd) else java.awt.Color(0x00, 0xcd, 0xcd))
+        val ansiWhite = ansiColor(com.intellij.execution.process.ConsoleHighlighter.GRAY, if (isDark) java.awt.Color(0xe5, 0xe5, 0xe5) else java.awt.Color(0xc0, 0xc0, 0xc0))
+        val ansiBrightBlack = ansiColor(com.intellij.execution.process.ConsoleHighlighter.DARKGRAY, if (isDark) java.awt.Color(0x66, 0x66, 0x66) else java.awt.Color(0x55, 0x55, 0x55))
+        val ansiBrightRed = ansiColor(com.intellij.execution.process.ConsoleHighlighter.RED_BRIGHT, if (isDark) java.awt.Color(0xf1, 0x4c, 0x4c) else java.awt.Color(0xff, 0x00, 0x00))
+        val ansiBrightGreen = ansiColor(com.intellij.execution.process.ConsoleHighlighter.GREEN_BRIGHT, if (isDark) java.awt.Color(0x23, 0xd1, 0x8b) else java.awt.Color(0x00, 0xff, 0x00))
+        val ansiBrightYellow = ansiColor(com.intellij.execution.process.ConsoleHighlighter.YELLOW_BRIGHT, if (isDark) java.awt.Color(0xf5, 0xf5, 0x43) else java.awt.Color(0xff, 0xff, 0x00))
+        val ansiBrightBlue = ansiColor(com.intellij.execution.process.ConsoleHighlighter.BLUE_BRIGHT, if (isDark) java.awt.Color(0x3b, 0x8e, 0xea) else java.awt.Color(0x55, 0x55, 0xff))
+        val ansiBrightMagenta = ansiColor(com.intellij.execution.process.ConsoleHighlighter.MAGENTA_BRIGHT, if (isDark) java.awt.Color(0xd6, 0x70, 0xd6) else java.awt.Color(0xff, 0x00, 0xff))
+        val ansiBrightCyan = ansiColor(com.intellij.execution.process.ConsoleHighlighter.CYAN_BRIGHT, if (isDark) java.awt.Color(0x29, 0xb8, 0xdb) else java.awt.Color(0x00, 0xff, 0xff))
+        val ansiBrightWhite = ansiColor(com.intellij.execution.process.ConsoleHighlighter.WHITE, if (isDark) java.awt.Color(0xe5, 0xe5, 0xe5) else java.awt.Color(0xff, 0xff, 0xff))
+
         val vars = mapOf(
             "--vscode-editor-background" to colorToHex(editorBg),
             "--vscode-font-family" to fontFamily,
@@ -469,6 +499,26 @@ $themeVars
             "--vscode-menu-foreground" to colorToHex(menuFg),
             "--vscode-menu-selectionBackground" to colorToHex(menuSelBg),
             "--vscode-menu-selectionForeground" to colorToHex(menuSelFg),
+            // Terminal ANSI colors for xterm.js theme
+            "--tc-terminal-foreground" to colorToHex(termFg),
+            "--tc-terminal-background" to colorToHex(termBg),
+            "--tc-terminal-cursor" to colorToHex(termCursor),
+            "--tc-terminal-black" to colorToHex(ansiBlack),
+            "--tc-terminal-red" to colorToHex(ansiRed),
+            "--tc-terminal-green" to colorToHex(ansiGreen),
+            "--tc-terminal-yellow" to colorToHex(ansiYellow),
+            "--tc-terminal-blue" to colorToHex(ansiBlue),
+            "--tc-terminal-magenta" to colorToHex(ansiMagenta),
+            "--tc-terminal-cyan" to colorToHex(ansiCyan),
+            "--tc-terminal-white" to colorToHex(ansiWhite),
+            "--tc-terminal-brightBlack" to colorToHex(ansiBrightBlack),
+            "--tc-terminal-brightRed" to colorToHex(ansiBrightRed),
+            "--tc-terminal-brightGreen" to colorToHex(ansiBrightGreen),
+            "--tc-terminal-brightYellow" to colorToHex(ansiBrightYellow),
+            "--tc-terminal-brightBlue" to colorToHex(ansiBrightBlue),
+            "--tc-terminal-brightMagenta" to colorToHex(ansiBrightMagenta),
+            "--tc-terminal-brightCyan" to colorToHex(ansiBrightCyan),
+            "--tc-terminal-brightWhite" to colorToHex(ansiBrightWhite),
         )
 
         return vars.entries.joinToString("\n") { (k, v) ->
