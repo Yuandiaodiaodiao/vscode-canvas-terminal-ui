@@ -127,13 +127,24 @@ class CanvasPanel(private val project: Project) : Disposable {
         keyDispatcher = KeyEventDispatcher { e ->
             if (disposed) return@KeyEventDispatcher false
             if (e.id != KeyEvent.KEY_PRESSED) return@KeyEventDispatcher false
-            if (!e.isControlDown || e.isMetaDown || e.isAltDown) return@KeyEventDispatcher false
 
             // Only intercept when our JCEF browser component has focus
             val focusOwner = KeyboardFocusManager.getCurrentKeyboardFocusManager().focusOwner
             if (focusOwner == null || !SwingUtilities.isDescendingFrom(focusOwner, browser.component)) {
                 return@KeyEventDispatcher false
             }
+
+            // Intercept ESC: prevent IntelliJ from deactivating the tool window,
+            // forward ESC to the webview so xterm receives it (escape sequences)
+            // and double-ESC workflows (e.g. Claude pause/clear) work correctly.
+            if (e.keyCode == KeyEvent.VK_ESCAPE && !e.isControlDown && !e.isMetaDown && !e.isAltDown) {
+                LOG.info("[TC] Swing KeyEventDispatcher: ESC intercepted, forwarding to webview")
+                sendEscToWebview()
+                e.consume()
+                return@KeyEventDispatcher true
+            }
+
+            if (!e.isControlDown || e.isMetaDown || e.isAltDown) return@KeyEventDispatcher false
 
             val ch = e.keyChar
             val keyCode = e.keyCode
@@ -650,6 +661,16 @@ $themeVars
                 type == "requestPasteData" -> {
                     handlePaste()
                 }
+                type == "copyToClipboard" -> {
+                    val text = msg.get("text")?.asString ?: return
+                    LOG.info("[TC] copyToClipboard: ${text.length} chars")
+                    try {
+                        val clipboard = java.awt.Toolkit.getDefaultToolkit().systemClipboard
+                        clipboard.setContents(java.awt.datatransfer.StringSelection(text), null)
+                    } catch (e: Exception) {
+                        LOG.warn("[TC] Failed to copy to clipboard: ${e.message}")
+                    }
+                }
                 type == "openInPanel" -> {
                     // No-op in JetBrains
                 }
@@ -831,8 +852,11 @@ $themeVars
         }
     }
 
-    private fun sendCtrlCharToFocusedTerminal(cefBrowser: CefBrowser?, ctrlCode: Int) {
-        val jsEscaped = "\\x${ctrlCode.toString(16).padStart(2, '0')}"
+    /**
+     * Forward ESC key to the webview. If a terminal is focused, send ESC (\x1b) as input;
+     * otherwise dispatch a JS keydown event so canvas-core.js etc. can handle it.
+     */
+    private fun sendEscToWebview() {
         val js = """
             (function(){
                 var node = document.activeElement;
@@ -840,15 +864,66 @@ $themeVars
                     if(node.classList && node.classList.contains('terminal-window')){
                         var id = parseInt(node.dataset.id);
                         if(id && window._jbBridgeReady && window._jbBridge){
-                            window._jbBridge(JSON.stringify({type:'input',id:id,data:'$jsEscaped'}));
+                            window._jbBridge(JSON.stringify({type:'input',id:id,data:'\x1b'}));
                         }
                         return;
                     }
                     node = node.parentElement;
                 }
+                // No terminal focused — dispatch ESC as a DOM keydown event
+                document.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape',code:'Escape',keyCode:27,bubbles:true}));
             })();
         """.trimIndent()
-        cefBrowser?.executeJavaScript(js, cefBrowser.url, 0)
+        browser.cefBrowser.executeJavaScript(js, browser.cefBrowser.url, 0)
+    }
+
+    private fun sendCtrlCharToFocusedTerminal(cefBrowser: CefBrowser?, ctrlCode: Int) {
+        if (ctrlCode == 3) {
+            // Ctrl+C: if xterm has a selection, copy it to clipboard; otherwise send SIGINT
+            val js = """
+                (function(){
+                    var node = document.activeElement;
+                    while(node && node !== document.body){
+                        if(node.classList && node.classList.contains('terminal-window')){
+                            var id = parseInt(node.dataset.id);
+                            var win = (typeof windows !== 'undefined') ? windows.get(id) : null;
+                            if(win && win.xterm && win.xterm.hasSelection()){
+                                var text = win.xterm.getSelection();
+                                if(window._jbBridgeReady && window._jbBridge){
+                                    window._jbBridge(JSON.stringify({type:'copyToClipboard',text:text}));
+                                }
+                                win.xterm.clearSelection();
+                                return;
+                            }
+                            if(id && window._jbBridgeReady && window._jbBridge){
+                                window._jbBridge(JSON.stringify({type:'input',id:id,data:'\x03'}));
+                            }
+                            return;
+                        }
+                        node = node.parentElement;
+                    }
+                })();
+            """.trimIndent()
+            cefBrowser?.executeJavaScript(js, cefBrowser.url, 0)
+        } else {
+            val jsEscaped = "\\x${ctrlCode.toString(16).padStart(2, '0')}"
+            val js = """
+                (function(){
+                    var node = document.activeElement;
+                    while(node && node !== document.body){
+                        if(node.classList && node.classList.contains('terminal-window')){
+                            var id = parseInt(node.dataset.id);
+                            if(id && window._jbBridgeReady && window._jbBridge){
+                                window._jbBridge(JSON.stringify({type:'input',id:id,data:'$jsEscaped'}));
+                            }
+                            return;
+                        }
+                        node = node.parentElement;
+                    }
+                })();
+            """.trimIndent()
+            cefBrowser?.executeJavaScript(js, cefBrowser.url, 0)
+        }
     }
 
     private fun buildJsonObject(vararg pairs: Pair<String, Any?>): JsonObject {

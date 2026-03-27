@@ -117,6 +117,17 @@ async function _createTerminalWindowFromDef(id, def) {
   const xtermContainer = el.querySelector('.xterm-container');
   xtermContainer.style.width = '100%';
   xtermContainer.style.height = '100%';
+  // Counter-scale xterm container to neutralize canvas CSS scale transform.
+  // This ensures xterm's getBoundingClientRect() matches its internal cell grid,
+  // fixing mouse selection coordinate offset when zoom != 1.
+  xtermContainer.style.transformOrigin = 'top left';
+  function _applyCounterScale() {
+    const z = zoom || 1;
+    xtermContainer.style.transform = 'scale(' + (1 / z) + ')';
+    xtermContainer.style.width = (z * 100) + '%';
+    xtermContainer.style.height = (z * 100) + '%';
+  }
+  _applyCounterScale();
 
   // Read terminal theme from CSS variables (set by JetBrains theme), fallback to dark defaults
   const cs = getComputedStyle(document.documentElement);
@@ -156,7 +167,7 @@ async function _createTerminalWindowFromDef(id, def) {
   await new Promise(r => setTimeout(r, 50));
   fitAddon.fit();
 
-  const winData = { el, xterm, fitAddon, x, y, w, h, id };
+  const winData = { el, xterm, fitAddon, x, y, w, h, id, _applyCounterScale };
   windows.set(id, winData);
 
   // xterm input -> extension host (these are NOT sync messages, they go to TerminalManager)

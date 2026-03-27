@@ -4,3 +4,7 @@ build/
 *.iml
 out/
 gradle/wrapper/gradle-wrapper.jar
+
+# Webview resources synced from ../media/ at build time (do not commit copies)
+src/main/resources/webview/canvas/
+src/main/resources/webview/xterm/

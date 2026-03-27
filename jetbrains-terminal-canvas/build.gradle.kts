@@ -34,7 +34,23 @@ kotlin {
     jvmToolchain(17)
 }
 
+// Sync webview resources from shared media/ directory (single source of truth)
+val syncWebview = tasks.register<Sync>("syncWebview") {
+    from(rootProject.file("../media/canvas")) {
+        into("canvas")
+    }
+    from(rootProject.file("../media/xterm")) {
+        into("xterm")
+    }
+    into(layout.projectDirectory.dir("src/main/resources/webview"))
+}
+
 tasks {
+    // Ensure webview resources are synced before processing resources
+    processResources {
+        dependsOn(syncWebview)
+    }
+
     patchPluginXml {
         sinceBuild.set("233")
         untilBuild.set("251.*")

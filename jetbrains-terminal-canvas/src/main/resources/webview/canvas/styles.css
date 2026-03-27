@@ -242,14 +242,14 @@ body {
   z-index: 10;
 }
 
-.resize-handle.right { top: 12px; right: -6px; width: 12px; bottom: 12px; cursor: ew-resize; }
-.resize-handle.bottom { bottom: -6px; left: 12px; right: 12px; height: 12px; cursor: ns-resize; }
-.resize-handle.corner { bottom: -8px; right: -8px; width: 32px; height: 32px; cursor: nwse-resize; }
-.resize-handle.left { top: 12px; left: -6px; width: 12px; bottom: 12px; cursor: ew-resize; }
-.resize-handle.top { top: -6px; left: 12px; right: 12px; height: 12px; cursor: ns-resize; }
-.resize-handle.top-left { top: -8px; left: -8px; width: 32px; height: 32px; cursor: nwse-resize; }
-.resize-handle.top-right { top: -8px; right: -8px; width: 32px; height: 32px; cursor: nesw-resize; }
-.resize-handle.bottom-left { bottom: -8px; left: -8px; width: 32px; height: 32px; cursor: nesw-resize; }
+.resize-handle.right { top: 12px; right: -10px; width: 20px; bottom: 12px; cursor: ew-resize; }
+.resize-handle.bottom { bottom: -10px; left: 12px; right: 12px; height: 20px; cursor: ns-resize; }
+.resize-handle.corner { bottom: -12px; right: -12px; width: 40px; height: 40px; cursor: nwse-resize; }
+.resize-handle.left { top: 12px; left: -10px; width: 20px; bottom: 12px; cursor: ew-resize; }
+.resize-handle.top { top: -10px; left: 12px; right: 12px; height: 20px; cursor: ns-resize; }
+.resize-handle.top-left { top: -12px; left: -12px; width: 40px; height: 40px; cursor: nwse-resize; }
+.resize-handle.top-right { top: -12px; right: -12px; width: 40px; height: 40px; cursor: nesw-resize; }
+.resize-handle.bottom-left { bottom: -12px; left: -12px; width: 40px; height: 40px; cursor: nesw-resize; }
 
 /* Minimap */
 #minimap {

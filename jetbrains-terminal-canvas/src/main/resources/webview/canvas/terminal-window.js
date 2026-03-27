@@ -7,7 +7,7 @@ async function createTerminalWindow(x, y) {
     type: 'sync:requestTerminal',
     x: x !== undefined ? x : (windows.size * 30 + 50),
     y: y !== undefined ? y : (windows.size * 30 + 50),
-    w: 600,
+    w: 900,
     h: 380,
     cols: 80,
     rows: 24,

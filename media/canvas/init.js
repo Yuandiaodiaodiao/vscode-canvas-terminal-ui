@@ -211,28 +211,34 @@ window.addEventListener('message', (e) => {
 
 // ─── Init: load xterm and wait for snapshot ──────
 async function init() {
-  try {
-    // Load from local bundled files
-    await loadCSS(XTERM_CSS_URI);
-    await loadScript(XTERM_JS_URI);
-    await loadScript(XTERM_FIT_JS_URI);
+  // JetBrains JCEF: xterm is pre-loaded via inline <script> tags
+  if (window._xtermPreloaded && typeof Terminal !== 'undefined') {
     xtermReady = true;
-    console.log('[TerminalCanvas] xterm loaded from local');
-  } catch (e) {
-    console.warn('[TerminalCanvas] local load failed, trying CDN...', e);
+    console.log('[TerminalCanvas] xterm pre-loaded (JCEF inline)');
+  } else {
     try {
-      await loadCSS(XTERM_BASE + '/css/xterm.css');
-      await loadScript(XTERM_BASE + '/lib/xterm.js');
-      await loadScript(XTERM_FIT_BASE + '/lib/xterm-addon-fit.js');
+      // Load from local bundled files
+      await loadCSS(XTERM_CSS_URI);
+      await loadScript(XTERM_JS_URI);
+      await loadScript(XTERM_FIT_JS_URI);
       xtermReady = true;
-      console.log('[TerminalCanvas] xterm loaded from CDN');
-    } catch (e2) {
-      console.error('[TerminalCanvas] Failed to load xterm from both local and CDN:', e2);
-      const banner = document.createElement('div');
-      banner.style.cssText = 'position:fixed;top:40px;left:0;right:0;padding:12px;background:#3a1515;color:#f88;font-size:12px;z-index:9998;text-align:center;';
-      banner.textContent = 'Failed to load xterm.js. Check network/CSP.';
-      document.body.appendChild(banner);
-      return;
+      console.log('[TerminalCanvas] xterm loaded from local');
+    } catch (e) {
+      console.warn('[TerminalCanvas] local load failed, trying CDN...', e);
+      try {
+        await loadCSS(XTERM_BASE + '/css/xterm.css');
+        await loadScript(XTERM_BASE + '/lib/xterm.js');
+        await loadScript(XTERM_FIT_BASE + '/lib/xterm-addon-fit.js');
+        xtermReady = true;
+        console.log('[TerminalCanvas] xterm loaded from CDN');
+      } catch (e2) {
+        console.error('[TerminalCanvas] Failed to load xterm from both local and CDN:', e2);
+        const banner = document.createElement('div');
+        banner.style.cssText = 'position:fixed;top:40px;left:0;right:0;padding:12px;background:#3a1515;color:#f88;font-size:12px;z-index:9998;text-align:center;';
+        banner.textContent = 'Failed to load xterm.js. Check network/CSP.';
+        document.body.appendChild(banner);
+        return;
+      }
     }
   }
 

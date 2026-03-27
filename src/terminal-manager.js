@@ -1,5 +1,6 @@
 const vscode = require('vscode');
 const os = require('os');
+const { getClaudeFileOpsMonitor } = require('./claude-file-ops-monitor');
 
 class TerminalManager {
   constructor() {
@@ -56,6 +57,10 @@ class TerminalManager {
     const env = { ...process.env };
     env.TERM = 'xterm-256color';
     env.COLORTERM = 'truecolor';
+
+    // Inject socket path so Claude hook can push file ops to us
+    const monitorEnv = getClaudeFileOpsMonitor().getEnvForTerminal();
+    Object.assign(env, monitorEnv);
 
     const ptyProcess = nodePty.spawn(shell, [], {
       name: 'xterm-256color',

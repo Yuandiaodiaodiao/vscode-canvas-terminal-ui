@@ -234,6 +234,13 @@ window.addEventListener('mousemove', (e) => {
 function updateCanvasTransform() {
   canvas.style.transform = 'translate(' + canvasX + 'px, ' + canvasY + 'px) scale(' + zoom + ')';
   zoomDisplay.textContent = Math.round(zoom * 100) + '%';
+  // Update counter-scale on all terminal xterm containers so mouse selection stays accurate
+  for (const w of windows.values()) {
+    if (w._applyCounterScale) {
+      w._applyCounterScale();
+      try { w.fitAddon.fit(); } catch (_) {}
+    }
+  }
   updateGridBg();
   updateMinimap();
 }

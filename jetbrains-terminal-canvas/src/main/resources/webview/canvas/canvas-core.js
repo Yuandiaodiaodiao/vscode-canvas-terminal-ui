@@ -50,6 +50,7 @@ let canvasX = 0, canvasY = 0, zoom = 1;
 let isPanning = false, panStartX = 0, panStartY = 0, panStartCX = 0, panStartCY = 0;
 let gridSnap = false;
 let noOverlap = false;
+let swapScrollZoom = false; // when true: plain scroll = zoom, ctrl/cmd+scroll = pan
 const SNAP_SIZE = 20;
 
 // Track mouse position for paste target detection
@@ -233,6 +234,13 @@ window.addEventListener('mousemove', (e) => {
 function updateCanvasTransform() {
   canvas.style.transform = 'translate(' + canvasX + 'px, ' + canvasY + 'px) scale(' + zoom + ')';
   zoomDisplay.textContent = Math.round(zoom * 100) + '%';
+  // Update counter-scale on all terminal xterm containers so mouse selection stays accurate
+  for (const w of windows.values()) {
+    if (w._applyCounterScale) {
+      w._applyCounterScale();
+      try { w.fitAddon.fit(); } catch (_) {}
+    }
+  }
   updateGridBg();
   updateMinimap();
 }
@@ -269,8 +277,13 @@ function zoomTo(newZoom, cx, cy) {
 }
 
 // Wheel: normal = vertical pan, shift = horizontal pan, cmd/ctrl = zoom
+// When swapScrollZoom is true, plain scroll = zoom, cmd/ctrl+scroll = pan
 // Use document-level capture to also intercept when mouse is over terminals
 document.addEventListener('wheel', (e) => {
+  const ctrlOrMeta = e.ctrlKey || e.metaKey;
+  const shouldZoom = swapScrollZoom ? !ctrlOrMeta && !e.shiftKey : ctrlOrMeta;
+  const shouldPan = swapScrollZoom ? ctrlOrMeta : !ctrlOrMeta && !e.shiftKey;
+
   if (e.shiftKey) {
     // Shift + scroll → horizontal pan (always, even over terminal)
     e.preventDefault();
@@ -278,8 +291,8 @@ document.addEventListener('wheel', (e) => {
     const scrollAmount = e.deltaY !== 0 ? e.deltaY : e.deltaX;
     canvasX -= scrollAmount;
     updateCanvasTransform();
-  } else if (e.ctrlKey || e.metaKey) {
-    // Cmd/Ctrl + scroll → zoom toward cursor (unless over terminal)
+  } else if (shouldZoom) {
+    // Check if over a terminal body — let xterm handle it
     const target = e.target;
     let inTerminal = false;
     let node = target;
@@ -291,6 +304,7 @@ document.addEventListener('wheel', (e) => {
       node = node.parentElement;
     }
     if (!inTerminal) {
+      // Zoom toward cursor
       e.preventDefault();
       e.stopPropagation();
       const rect = viewport.getBoundingClientRect();
@@ -300,8 +314,8 @@ document.addEventListener('wheel', (e) => {
       zoomTo(zoom * delta, cx, cy);
     }
     // Over terminal → don't prevent, let xterm scroll
-  } else {
-    // Normal scroll: check if over a terminal body — let xterm handle it
+  } else if (shouldPan) {
+    // Check if over a terminal body — let xterm handle it
     const target = e.target;
     let inTerminal = false;
     let node = target;
